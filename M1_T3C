@@ -1,0 +1,63 @@
+#define TRIG_PIN 3     // Ultrasonic sensor trigger pin
+#define ECHO_PIN 4     // Ultrasonic sensor echo pin
+#define PIR_PIN 2      // PIR motion sensor pin
+#define LED1_PIN 13    // LED for PIR motion sensor
+#define LED2_PIN 8     // LED for Ultrasonic sensor
+
+volatile bool motionDetected = false;
+
+void motionISR() {
+    motionDetected = true;
+}
+
+void setup() {
+    pinMode(LED1_PIN, OUTPUT);
+    pinMode(LED2_PIN, OUTPUT);
+    pinMode(PIR_PIN, INPUT);
+    pinMode(TRIG_PIN, OUTPUT);
+    pinMode(ECHO_PIN, INPUT);
+    Serial.begin(9600);
+
+    // Attach interrupt for PIR motion sensor
+    attachInterrupt(digitalPinToInterrupt(PIR_PIN), motionISR, RISING);
+}
+
+long measureDistance() {
+    digitalWrite(TRIG_PIN, LOW);
+    delayMicroseconds(2);
+    digitalWrite(TRIG_PIN, HIGH);
+    delayMicroseconds(15); // Increased pulse width for stability
+    digitalWrite(TRIG_PIN, LOW);
+
+    long duration = pulseIn(ECHO_PIN, HIGH, 30000); // Timeout at 30ms (prevents hanging)
+    
+    if (duration == 0) {
+        return 999; // Return a high value to indicate no detection
+    }
+
+    long distance = duration * 0.034 / 2; // Convert time to distance in cm
+    return distance;
+}
+
+void loop() {
+    long distance = measureDistance();
+    bool objectDetected = (distance > 0 && distance < 20); // Object detected within 20cm
+
+    if (motionDetected) {
+        digitalWrite(LED1_PIN, HIGH);
+        Serial.println("Motion detected: LED1 ON");
+        delay(1000);
+        digitalWrite(LED1_PIN, LOW);
+        Serial.println("LED1 OFF");
+        motionDetected = false;
+    }
+
+    if (objectDetected) {
+        digitalWrite(LED2_PIN, HIGH);
+        Serial.println("LED2 ON - Obstacle detected");
+        delay(1000);
+        digitalWrite(LED2_PIN, LOW);
+        Serial.println("LED2 OFF");
+    }
+}
+
